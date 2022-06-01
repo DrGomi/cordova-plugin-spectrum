@@ -1,0 +1,8 @@
+dependencies {
+    compile 'com.facebook.spectrum:spectrum-core:1.3.0'
+    compile 'com.facebook.spectrum:spectrum-jpeg:1.3.0'
+    compile 'com.facebook.spectrum:spectrum-fbjni:1.3.0'
+    compile 'com.facebook.soloader:soloader:0.10.3'
+    compile 'com.facebook.soloader:nativeloader:0.10.3'
+    compile 'com.facebook.soloader:soloaderdelegate:0.7.0'
+}

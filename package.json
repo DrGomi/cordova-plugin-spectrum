@@ -1,0 +1,17 @@
+{
+  "name": "cordova-plugin-spectrum",
+  "version": "0.0.1",
+  "description": "cordova embedding of facebooks spectrum image transcoding library",
+  "cordova": {
+    "id": "cordova-plugin-spectrum",
+    "platforms": [
+      "android"
+    ]
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-android"
+  ],
+  "author": "",
+  "license": "ISC"
+}
