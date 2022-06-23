@@ -24,6 +24,7 @@ import com.facebook.spectrum.SpectrumResult;
 import com.facebook.spectrum.image.ImageSize;
 import com.facebook.spectrum.Configuration;
 import com.facebook.spectrum.options.TranscodeOptions;
+import com.facebook.spectrum.requirements.CropRequirement;
 import com.facebook.spectrum.requirements.EncodeRequirement;
 import com.facebook.spectrum.requirements.ResizeRequirement;
 import static com.facebook.spectrum.image.EncodedImageFormat.JPEG;
@@ -83,15 +84,53 @@ public class ImageTranscoding extends CordovaPlugin {
               }
             });
               return true;
+        } else if (action.equals("crop")) {
+            cordova.getThreadPool().execute(() -> {
+                try {
+
+                    final String fileInPath = args.getString(0);
+                    final String fileOutPath = args.getString(1);
+
+                    final JSONObject options = args.optJSONObject(2);
+                    final int top = options.getInt("top");
+                    final int left = options.getInt("left");
+                    final int bottom = options.getInt("bottom");
+                    final int right = options.getInt("right");
+                    final int quality = options.getInt("quality");
+                    final int size = options.getInt("size");
+
+                    crop(
+                            getContext(),
+                            mSpectrum,
+                            fileInPath,
+                            fileOutPath,
+                            top,
+                            left,
+                            bottom,
+                            right,
+                            quality,
+                            size,
+                            result -> callbackContext.success(result));
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    callbackContext.error("spectrum.crop ERROR:" + e.getMessage());
+                }
+            });
+            return true;
         }
         return false;
     }
 
 
-    public void transcode(final Context context, 
+    public void crop(final Context context,
                             final Spectrum mSpectrum, 
                             final String fileInPath, 
                             final String fileOutPath,
+                            final Integer top,
+                            final Integer left,
+                            final Integer bottom,
+                            final Integer right,
                             final Integer quality,
                             final Integer size,
                             final StringRunnable completion) 
@@ -100,6 +139,55 @@ public class ImageTranscoding extends CordovaPlugin {
         final File imageFile = new File(fileInPath);
         final Uri imageUri = Uri.fromFile(imageFile);
     
+        try (final InputStream inputStream = context.getContentResolver().openInputStream(imageUri)) {
+
+            final CropRequirement cropRequirement =
+                    CropRequirement.makeAbsoluteToOrigin(left, top, right, bottom, true);
+
+          final Configuration configuration = Configuration.Builder()
+                  .setInterpretMetadata(true)
+                  .setSamplingMethod(Configuration.SamplingMethod.Bicubic)
+                  .setPropagateChromaSamplingModeFromSource(true)
+                  .setUseTrellis(true)
+                  .setUseProgressive(true)
+                  .setUseOptimizeScan(true)
+                  .setUseCompatibleDcScanOpt(true)
+                  .build();
+
+          final TranscodeOptions transcodeOptions =
+          TranscodeOptions.Builder(new EncodeRequirement(JPEG, quality))
+                  .crop(cropRequirement)
+                  .resize(ResizeRequirement.Mode.EXACT, new ImageSize(size, size))
+                  .configuration(configuration)
+                  .build();
+    
+          final SpectrumResult result = mSpectrum.transcode(
+                  EncodedImageSource.from(inputStream),
+                  EncodedImageSink.from(fileOutPath),
+                  transcodeOptions,
+                  "upload_flow_callsite_identifier");
+    
+          completion.run(result.toString());
+    
+        } catch (final IOException e) {
+          throw new JSONException(e.getMessage());
+        } catch (final SpectrumException e) {
+          throw new JSONException(e.getMessage());
+        }
+      }
+
+    public void transcode(final Context context,
+                            final Spectrum mSpectrum,
+                            final String fileInPath,
+                            final String fileOutPath,
+                            final Integer quality,
+                            final Integer size,
+                            final StringRunnable completion)
+        throws JSONException {
+
+        final File imageFile = new File(fileInPath);
+        final Uri imageUri = Uri.fromFile(imageFile);
+
         try (final InputStream inputStream = context.getContentResolver().openInputStream(imageUri)) {
 
           final Configuration configuration = Configuration.Builder()
@@ -117,15 +205,15 @@ public class ImageTranscoding extends CordovaPlugin {
                   .resize(ResizeRequirement.Mode.EXACT_OR_SMALLER, new ImageSize(size, size))
                   .configuration(configuration)
                   .build();
-    
+
           final SpectrumResult result = mSpectrum.transcode(
                   EncodedImageSource.from(inputStream),
                   EncodedImageSink.from(fileOutPath),
                   transcodeOptions,
                   "upload_flow_callsite_identifier");
-    
+
           completion.run(result.toString());
-    
+
         } catch (final IOException e) {
           throw new JSONException(e.getMessage());
         } catch (final SpectrumException e) {
